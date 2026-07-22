@@ -10,10 +10,11 @@ sh = gc.open("Explore_News_Beta_Staging").sheet1
 # 2. Add your 3 discovered RSS feeds to this list
 
 rss_urls = [
-    "https://www.edutopia.org/",
-    "https://www.the74million.org/feed/",
-    "https://www.insidehighered.com/rss.xml"
+    "https://edutopia.org",
+    "https://news.careers360.com/rss",
+    "https://www.thehindu.com/education/feeder/default.rss"
 ]
+
 
 # 3. Pull existing URLs from Column B to ensure we never pull duplicates
 
