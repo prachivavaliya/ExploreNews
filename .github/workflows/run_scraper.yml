@@ -10,7 +10,8 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout Repository
+        uses: actions/checkout@v4
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -19,7 +20,16 @@ jobs:
 
       - name: Install Dependencies
         run: |
-          pip install feedparser gspread
+          pip install -r requirements.txt
+
+      - name: Create Google Credentials File
+        run: |
+          echo '${{ secrets.GOOGLE_CREDS }}' > google_creds.json
+
+      - name: Verify Credentials File
+        run: |
+          ls -la
+          test -f google_creds.json && echo "google_creds.json created successfully"
 
       - name: Execute Extraction Pipeline
         run: |
