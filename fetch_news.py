@@ -14,8 +14,7 @@ sh = gc.open("Explore_News_Beta_Staging").sheet1
 
 rss_urls = [
     "https://edutopia.org",
-    "https://news.careers360.com/rss",
-    "https://www.thehindu.com/education/feeder/default.rss"
+    
 ]
 
 # ----------------------------
