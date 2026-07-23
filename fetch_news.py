@@ -18,7 +18,9 @@ rss_urls = [
     "https://www.educationworld.in/feed/",
     "https://www.livemint.com/rss/education",
     "https://www.indiatoday.in/rss/1206578",
-    "https://www.thehindu.com/education/feeder/default.rss"
+    "https://www.thehindu.com/education/feeder/default.rss",
+    "https://rss.nytimes.com/services/xml/rss/nyt/Education.xml"
+
 ]
 
 # ----------------------------
