@@ -1,6 +1,7 @@
 import feedparser
 import gspread
 import time
+from urllib.parse import urlsplit, urlunsplit
 
 # ----------------------------
 # Google Sheets Connection
@@ -117,11 +118,25 @@ keywords = [
     "career",
     "training"
 ]
+def normalize_url(url):
+    parts = urlsplit(url)
+    return urlunsplit((
+        parts.scheme,
+        parts.netloc,
+        parts.path.rstrip("/"),
+        "",
+        ""
+    ))
 # ----------------------------
 # Existing URLs
 # ----------------------------
 
 existing_urls = set(sh.col_values(2))
+existing_titles = set(
+    title.strip().lower()
+    for title in sh.col_values(1)
+    if title.strip()
+)
 
 print("=" * 60)
 print("Starting News Extraction Pipeline...")
@@ -132,6 +147,8 @@ print("=" * 60)
 # ----------------------------
 
 new_rows = []
+queued_urls = set()
+queued_titles = set()
 
 for url in rss_urls:
 
@@ -149,7 +166,7 @@ for url in rss_urls:
 
             title = entry.get("title", "").strip()
             summary = entry.get("summary", "").strip()
-            link = entry.get("link", "").strip()
+            link = normalize_url(entry.get("link", "").strip())
 
             if not title or not link:
                 continue
@@ -160,8 +177,18 @@ for url in rss_urls:
             if not any(keyword in text for keyword in keywords):
                 continue
 
-            # Skip duplicate URLs
+            # Duplicate URLs
             if link in existing_urls:
+                continue
+            # Duplicate Title
+            if title.lower() in existing_titles:
+                continue
+
+            # Same run duplicate
+            if link in queued_urls:
+                continue
+
+            if title.lower() in queued_titles:
                 continue
 
             # Store row (don't upload yet)
@@ -174,6 +201,10 @@ for url in rss_urls:
             ])
 
             existing_urls.add(link)
+            existing_titles.add(title.lower())
+
+            queued_urls.add(link)
+            queued_titles.add(title.lower())
 
             print(f"Queued: {title}")
 
