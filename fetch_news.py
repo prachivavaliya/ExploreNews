@@ -7,7 +7,7 @@ import time
 # ----------------------------
 
 gc = gspread.service_account(filename="google_creds.json")
-sh = gc.open("Explore_News_Beta_Staging").sheet1
+sh = gc.open("Prachi_Explore_News_Beta_Staging").sheet1
 
 # ----------------------------
 # RSS Feeds
