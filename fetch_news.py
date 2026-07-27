@@ -19,9 +19,10 @@ rss_urls = [
     "https://www.livemint.com/rss/education",
     "https://www.indiatoday.in/rss/1206578",
     "https://www.thehindu.com/education/feeder/default.rss",
-    "https://rss.nytimes.com/services/xml/rss/nyt/Education.xml"
-
-]
+    "https://rss.nytimes.com/services/xml/rss/nyt/Education.xml",
+    "https://www.careerindia.com/rss/feeds/education-news-fb.xml",
+    "https://www.hindustantimes.com/feeds/rss/education/news/rssfeed.xml",
+    "https://www.edtechreview.in/feed/"]
 
 # ----------------------------
 # Education Keywords
