@@ -2,7 +2,30 @@ import feedparser
 import gspread
 import time
 from urllib.parse import urlsplit, urlunsplit
+from newspaper import Article
+import re
 
+def get_article_summary(url):
+    try:
+        article = Article(url)
+        article.download()
+        article.parse()
+
+        text = article.text
+
+        if not text:
+            return ""
+
+        sentences = text.split(".")
+        summary = ".".join(sentences[:2]).strip()
+
+        if summary:
+            summary += "."
+
+        return summary
+
+    except Exception:
+        return ""
 # ----------------------------
 # Google Sheets Connection
 # ----------------------------
@@ -25,98 +48,253 @@ rss_urls = [
     "https://www.hindustantimes.com/feeds/rss/education/news/rssfeed.xml",
     "https://www.edtechreview.in/feed/"]
 
+tag_mapping = {
+
+    # Teachers
+    "teacher":"Teachers",
+    "teachers":"Teachers",
+    "teaching":"Teaching",
+    "educator":"Teachers",
+    "educators":"Teachers",
+    "faculty":"Faculty",
+    "professor":"Professor",
+    "lecturer":"Faculty",
+    "principal":"School Leadership",
+    "headmaster":"School Leadership",
+    "headmistress":"School Leadership",
+
+    # Teaching
+    "pedagogy":"Pedagogy",
+    "lesson plan":"Lesson Planning",
+    "lesson planning":"Lesson Planning",
+    "classroom":"Classroom",
+    "classroom management":"Classroom Management",
+    "teaching methods":"Teaching Methods",
+    "teaching strategy":"Teaching Methods",
+    "curriculum":"Curriculum",
+    "syllabus":"Curriculum",
+    "assessment":"Assessment",
+    "evaluation":"Assessment",
+    "learning":"Learning",
+    "instruction":"Teaching",
+    "learning outcomes":"Learning Outcomes",
+
+    # School
+    "school":"School",
+    "schools":"School",
+
+    # Teacher Training
+    "teacher training":"Teacher Training",
+    "professional development":"Professional Development",
+    "upskilling":"Professional Development",
+    "reskilling":"Professional Development",
+    "workshop":"Workshop",
+    "seminar":"Seminar",
+    "conference":"Conference",
+    "webinar":"Webinar",
+
+    # Education Policy
+    "education":"Education",
+    "education policy":"Education Policy",
+    "education reform":"Education Policy",
+    "education ministry":"Government",
+    "ministry of education":"Government",
+    "department of education":"Government",
+    "cbse":"CBSE",
+    "icse":"ICSE",
+    "gseb":"GSEB",
+    "ncert":"NCERT",
+    "ugc":"UGC",
+    "aicte":"AICTE",
+
+    # Exams
+    "exam":"Exams",
+    "exams":"Exams",
+    "board exam":"Board Exams",
+    "board exams":"Board Exams",
+    "result":"Results",
+    "results":"Results",
+    "answer key":"Answer Key",
+    "admission":"Admissions",
+    "admissions":"Admissions",
+    "registration":"Registration",
+    "application":"Application",
+    "cutoff":"Cutoff",
+    "merit list":"Merit List",
+    "counselling":"Counselling",
+    "seat allotment":"Seat Allotment",
+
+    # Competitive Exams
+    "neet":"NEET",
+    "jee":"JEE",
+    "jee mains":"JEE",
+    "jee advanced":"JEE",
+    "cuet":"CUET",
+    "ugc net":"UGC NET",
+    "net":"UGC NET",
+    "set":"SET",
+    "gate":"GATE",
+    "cat":"CAT",
+    "clat":"CLAT",
+    "upsc":"UPSC",
+    "ssc":"SSC",
+
+    # Technology
+    "edtech":"EdTech",
+    "digital learning":"Digital Learning",
+    "online learning":"Online Learning",
+    "e-learning":"Online Learning",
+    "virtual classroom":"Online Learning",
+    "smart classroom":"Smart Classroom",
+    "artificial intelligence":"Artificial Intelligence",
+    "ai":"Artificial Intelligence",
+    "machine learning":"Machine Learning",
+    "coding":"Coding",
+    "robotics":"Robotics",
+    "stem":"STEM",
+
+    # NGO
+    "ngo":"NGO",
+    "foundation":"Foundation",
+    "charity":"NGO",
+    "nonprofit":"NGO",
+    "non-profit":"NGO",
+    "literacy":"Literacy",
+    "child education":"Child Education",
+    "girl education":"Girls Education",
+    "inclusive education":"Inclusive Education",
+    "special education":"Special Education",
+    "community learning":"Community Learning",
+
+    # Research
+    "research":"Research",
+    "innovation":"Innovation",
+    "teaching resources":"Teaching Resources",
+    "classroom resources":"Teaching Resources",
+    "best practices":"Best Practices",
+
+    # Wellbeing
+    "mental health":"Mental Health",
+    "wellbeing":"Wellbeing",
+    "student support":"Student Support"
+}
 # ----------------------------
 # Education Keywords
 # ----------------------------
 
 keywords = [
 
-    # General Education
-    "education","educational","school","schools","schooling",
-    "student","students","teacher","teachers","teaching",
-    "college","colleges","university","universities","campus",
-    "classroom","learning","learner","curriculum","syllabus",
-    "academic","academics","academy","higher education",
-    "primary education","secondary education",
-    "k-12","kindergarten","nursery","preschool",
-    "tuition","coaching","institute","institution",
+    # Teachers
+    "teacher","teachers","teaching","educator","educators",
     "faculty","professor","lecturer","principal",
-    "headmaster","headmistress",
+    "headmaster","headmistress","school leader",
 
-    # Boards
-    "cbse","icse","gseb","board exam","state board",
+    # Teaching
+    "pedagogy","lesson plan","lesson planning",
+    "classroom","classroom management",
+    "teaching methods","teaching strategy",
+    "curriculum","syllabus","assessment",
+    "evaluation","learning","instruction",
+    "learning outcomes",
 
-    # Entrance Exams
-    "neet","jee","jee mains","jee advanced","cuet",
-    "upsc","ssc","gpsc","mpsc","bpsc",
-    "ugc net","net","set","gate","cat",
-    "clat","mat","nift","nid",
-    "iit","nit","iiit","iim","aiims",
+    # Schools
+    "school","schools","primary school",
+    "secondary school","high school",
 
-    # Exam Process
-    "exam","exams","result","results","rank",
-    "cutoff","merit","admission","admissions",
-    "application","registration","counselling",
-    "counseling","seat allotment",
+    # Teacher Training
+    "teacher training",
+    "professional development",
+    "upskilling",
+    "reskilling",
+    "workshop",
+    "seminar",
+    "conference",
+    "webinar",
 
-    # Scholarships
-    "scholarship","scholarships","financial aid",
-    "grant","stipend","fellowship","education loan",
+    # Education Policy
+    "education",
+    "education policy",
+    "education reform",
+    "education ministry",
+    "ministry of education",
+    "department of education",
+    "cbse",
+    "icse",
+    "gseb",
+    "ncert",
+    "ugc",
+    "aicte",
+
+    # Exam Updates
+    "exam",
+    "exams",
+    "board exam",
+    "board exams",
+    "result",
+    "results",
+    "answer key",
+    "admission",
+    "admissions",
+    "registration",
+    "application",
+    "cutoff",
+    "merit list",
+    "counselling",
+    "seat allotment",
+
+    # Major Exams
+    "neet",
+    "jee",
+    "jee mains",
+    "jee advanced",
+    "cuet",
+    "ugc net",
+    "net",
+    "set",
+    "gate",
+    "cat",
+    "clat",
+    "upsc",
+    "ssc",
 
     # EdTech
-    "edtech","online learning","e-learning",
-    "digital learning","virtual classroom",
-    "smart classroom","lms","mooc",
-    "coursera","udemy","byju","unacademy",
-    "vedantu","physics wallah","pw",
-
-    # Subjects
-    "science","mathematics","math","physics",
-    "chemistry","biology","computer science",
-    "coding","programming","robotics",
-    "artificial intelligence","machine learning",
-    "data science","engineering",
-    "medical education","commerce","arts",
-
-    # Research
-    "research","innovation","laboratory",
-    "publication","journal","stem",
-    "skill development",
-
-    # Government Bodies
-    "ugc","aicte","ncert","scert",
-    "nta","education ministry",
-    "ministry of education",
-
-    # Campus
-    "hostel","library","placement",
-    "placements","internship",
-    "career guidance","student welfare",
+    "edtech",
+    "digital learning",
+    "online learning",
+    "e-learning",
+    "virtual classroom",
+    "smart classroom",
+    "artificial intelligence",
+    "ai",
+    "machine learning",
+    "coding",
+    "robotics",
+    "stem",
 
     # NGO
-    "ngo","foundation","charity",
-    "child education","girl education",
-    "literacy","inclusive education",
-    "special education","community learning",
+    "ngo",
+    "foundation",
+    "charity",
+    "nonprofit",
+    "non-profit",
+    "literacy",
+    "child education",
+    "girl education",
+    "inclusive education",
+    "special education",
+    "community learning",
 
-    # Events
-    "seminar","webinar","conference",
-    "workshop","hackathon",
-    "competition","olympiad","quiz",
+    # Research
+    "research",
+    "innovation",
+    "teaching resources",
+    "classroom resources",
+    "best practices",
 
-    # International
-    "study abroad","exchange program",
-    "international education",
-    "foreign university",
-
-    # Misc
-    "teacher training",
-    "vocational education",
-    "distance education",
-    "open university",
-    "open school",
-    "career",
-    "training"
+    # Wellbeing
+    "mental health",
+    "wellbeing",
+    "student support"
 ]
 def normalize_url(url):
     parts = urlsplit(url)
@@ -162,51 +340,61 @@ for url in rss_urls:
 
         print(f"Articles Found: {len(feed.entries)}")
 
-        for entry in feed.entries:
+        
+        for entry in feed.entries:        
 
-            title = entry.get("title", "").strip()
-            summary = entry.get("summary", "").strip()
-            link = normalize_url(entry.get("link", "").strip())
+         link = entry.link
 
-            if not title or not link:
-                continue
+         if entry.link in existing_urls:
+           continue
 
-            text = (title + " " + summary).lower()
+        title = entry.title
 
-            # Check if article is education related
-            if not any(keyword in text for keyword in keywords):
-                continue
+        summary = get_article_summary(entry.link)
+        if not summary:
+         summary = entry.get("summary", "")
+         summary = re.sub("<.*?>", "", summary)
+         summary = summary.replace("\n", " ").strip() 
+         summary = summary[:100]
 
-            # Duplicate URLs
-            if link in existing_urls:
-                continue
-            # Duplicate Title
-            if title.lower() in existing_titles:
-                continue
+        text = (title + " " + summary).lower()
 
-            # Same run duplicate
-            if link in queued_urls:
-                continue
+        tags = []
 
-            if title.lower() in queued_titles:
-                continue
+        for keyword, tag in tag_mapping.items():
 
-            # Store row (don't upload yet)
-            new_rows.append([
-                title,
-                link,
-                "",
-                "",
-                "Draft"
-            ])
+         if keyword.lower() in text:
 
-            existing_urls.add(link)
-            existing_titles.add(title.lower())
+            tags.append(tag)
 
-            queued_urls.add(link)
-            queued_titles.add(title.lower())
+         tags = list(dict.fromkeys(tags))
 
-            print(f"Queued: {title}")
+        tags = ", ".join(tags[:3])
+
+        sh.append_row([
+        title,
+        entry.link,
+        summary,
+        tags,
+        "Draft"
+    ])
+
+        existing_urls.add(entry.link)
+
+        print("Added:", title)
+
+
+
+
+
+
+        existing_urls.add(link)
+        existing_titles.add(title.lower())
+
+        queued_urls.add(link)
+        queued_titles.add(title.lower())
+
+        print(f"Queued: {title}")
 
     except Exception as e:
         print(f"Error reading feed: {url}")
@@ -216,29 +404,10 @@ for url in rss_urls:
 # Upload All Rows Together
 # ----------------------------
 
+
+
 print("\n" + "=" * 60)
-
-if new_rows:
-
-    print(f"Uploading {len(new_rows)} new articles...")
-
-    try:
-
-        sh.append_rows(
-            new_rows,
-            value_input_option="RAW"
-        )
-
-        print("Upload Successful!")
-
-    except Exception as e:
-
-        print("Upload Failed!")
-        print(e)
-
-else:
-
-    print("No New Articles Found.")
+print(f"New Articles Added : {len(queued_urls)}")
 
 print("=" * 60)
 # ----------------------------
@@ -250,8 +419,12 @@ print("=" * 60)
 print("NEWS EXTRACTION PIPELINE COMPLETED")
 print("=" * 60)
 
-print(f"Total New Articles Added : {len(new_rows)}")
+print(f"Total New Articles Added : {len(queued_urls)}")
 print(f"Total Existing URLs      : {len(existing_urls)}")
+
+all_rows = sh.get_all_values()
+
+print(f"Total Rows in Sheet : {len(all_rows) - 1}")
 
 print("=" * 60)
 print("Google Sheet Updated Successfully!")
