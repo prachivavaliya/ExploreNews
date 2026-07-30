@@ -1,42 +1,30 @@
 import feedparser
 import gspread
-import time
+import re
 from urllib.parse import urlsplit, urlunsplit
 from newspaper import Article
-import re
+import os
+from dotenv import load_dotenv
+from groq import Groq
 
-def get_article_summary(url):
-    try:
-        article = Article(url)
-        article.download()
-        article.parse()
+# ----------------------------
+# Groq API
+# ----------------------------
+load_dotenv()
 
-        text = article.text
-
-        if not text:
-            return ""
-
-        sentences = text.split(".")
-        summary = ".".join(sentences[:2]).strip()
-
-        if summary:
-            summary += "."
-
-        return summary
-
-    except Exception:
-        return ""
+client = Groq(
+    api_key=os.getenv("GROQ_API_KEY")
+)
 # ----------------------------
 # Google Sheets Connection
 # ----------------------------
-
 gc = gspread.service_account(filename="google_creds.json")
 sh = gc.open("Prachi_Explore_News_Beta_Staging").sheet1
+
 
 # ----------------------------
 # RSS Feeds
 # ----------------------------
-
 rss_urls = [
     "https://indianexpress.com/section/education/feed/",
     "https://www.educationworld.in/feed/",
@@ -46,256 +34,13 @@ rss_urls = [
     "https://rss.nytimes.com/services/xml/rss/nyt/Education.xml",
     "https://www.careerindia.com/rss/feeds/education-news-fb.xml",
     "https://www.hindustantimes.com/feeds/rss/education/news/rssfeed.xml",
-    "https://www.edtechreview.in/feed/"]
-
-tag_mapping = {
-
-    # Teachers
-    "teacher":"Teachers",
-    "teachers":"Teachers",
-    "teaching":"Teaching",
-    "educator":"Teachers",
-    "educators":"Teachers",
-    "faculty":"Faculty",
-    "professor":"Professor",
-    "lecturer":"Faculty",
-    "principal":"School Leadership",
-    "headmaster":"School Leadership",
-    "headmistress":"School Leadership",
-
-    # Teaching
-    "pedagogy":"Pedagogy",
-    "lesson plan":"Lesson Planning",
-    "lesson planning":"Lesson Planning",
-    "classroom":"Classroom",
-    "classroom management":"Classroom Management",
-    "teaching methods":"Teaching Methods",
-    "teaching strategy":"Teaching Methods",
-    "curriculum":"Curriculum",
-    "syllabus":"Curriculum",
-    "assessment":"Assessment",
-    "evaluation":"Assessment",
-    "learning":"Learning",
-    "instruction":"Teaching",
-    "learning outcomes":"Learning Outcomes",
-
-    # School
-    "school":"School",
-    "schools":"School",
-
-    # Teacher Training
-    "teacher training":"Teacher Training",
-    "professional development":"Professional Development",
-    "upskilling":"Professional Development",
-    "reskilling":"Professional Development",
-    "workshop":"Workshop",
-    "seminar":"Seminar",
-    "conference":"Conference",
-    "webinar":"Webinar",
-
-    # Education Policy
-    "education":"Education",
-    "education policy":"Education Policy",
-    "education reform":"Education Policy",
-    "education ministry":"Government",
-    "ministry of education":"Government",
-    "department of education":"Government",
-    "cbse":"CBSE",
-    "icse":"ICSE",
-    "gseb":"GSEB",
-    "ncert":"NCERT",
-    "ugc":"UGC",
-    "aicte":"AICTE",
-
-    # Exams
-    "exam":"Exams",
-    "exams":"Exams",
-    "board exam":"Board Exams",
-    "board exams":"Board Exams",
-    "result":"Results",
-    "results":"Results",
-    "answer key":"Answer Key",
-    "admission":"Admissions",
-    "admissions":"Admissions",
-    "registration":"Registration",
-    "application":"Application",
-    "cutoff":"Cutoff",
-    "merit list":"Merit List",
-    "counselling":"Counselling",
-    "seat allotment":"Seat Allotment",
-
-    # Competitive Exams
-    "neet":"NEET",
-    "jee":"JEE",
-    "jee mains":"JEE",
-    "jee advanced":"JEE",
-    "cuet":"CUET",
-    "ugc net":"UGC NET",
-    "net":"UGC NET",
-    "set":"SET",
-    "gate":"GATE",
-    "cat":"CAT",
-    "clat":"CLAT",
-    "upsc":"UPSC",
-    "ssc":"SSC",
-
-    # Technology
-    "edtech":"EdTech",
-    "digital learning":"Digital Learning",
-    "online learning":"Online Learning",
-    "e-learning":"Online Learning",
-    "virtual classroom":"Online Learning",
-    "smart classroom":"Smart Classroom",
-    "artificial intelligence":"Artificial Intelligence",
-    "ai":"Artificial Intelligence",
-    "machine learning":"Machine Learning",
-    "coding":"Coding",
-    "robotics":"Robotics",
-    "stem":"STEM",
-
-    # NGO
-    "ngo":"NGO",
-    "foundation":"Foundation",
-    "charity":"NGO",
-    "nonprofit":"NGO",
-    "non-profit":"NGO",
-    "literacy":"Literacy",
-    "child education":"Child Education",
-    "girl education":"Girls Education",
-    "inclusive education":"Inclusive Education",
-    "special education":"Special Education",
-    "community learning":"Community Learning",
-
-    # Research
-    "research":"Research",
-    "innovation":"Innovation",
-    "teaching resources":"Teaching Resources",
-    "classroom resources":"Teaching Resources",
-    "best practices":"Best Practices",
-
-    # Wellbeing
-    "mental health":"Mental Health",
-    "wellbeing":"Wellbeing",
-    "student support":"Student Support"
-}
-# ----------------------------
-# Education Keywords
-# ----------------------------
-
-keywords = [
-
-    # Teachers
-    "teacher","teachers","teaching","educator","educators",
-    "faculty","professor","lecturer","principal",
-    "headmaster","headmistress","school leader",
-
-    # Teaching
-    "pedagogy","lesson plan","lesson planning",
-    "classroom","classroom management",
-    "teaching methods","teaching strategy",
-    "curriculum","syllabus","assessment",
-    "evaluation","learning","instruction",
-    "learning outcomes",
-
-    # Schools
-    "school","schools","primary school",
-    "secondary school","high school",
-
-    # Teacher Training
-    "teacher training",
-    "professional development",
-    "upskilling",
-    "reskilling",
-    "workshop",
-    "seminar",
-    "conference",
-    "webinar",
-
-    # Education Policy
-    "education",
-    "education policy",
-    "education reform",
-    "education ministry",
-    "ministry of education",
-    "department of education",
-    "cbse",
-    "icse",
-    "gseb",
-    "ncert",
-    "ugc",
-    "aicte",
-
-    # Exam Updates
-    "exam",
-    "exams",
-    "board exam",
-    "board exams",
-    "result",
-    "results",
-    "answer key",
-    "admission",
-    "admissions",
-    "registration",
-    "application",
-    "cutoff",
-    "merit list",
-    "counselling",
-    "seat allotment",
-
-    # Major Exams
-    "neet",
-    "jee",
-    "jee mains",
-    "jee advanced",
-    "cuet",
-    "ugc net",
-    "net",
-    "set",
-    "gate",
-    "cat",
-    "clat",
-    "upsc",
-    "ssc",
-
-    # EdTech
-    "edtech",
-    "digital learning",
-    "online learning",
-    "e-learning",
-    "virtual classroom",
-    "smart classroom",
-    "artificial intelligence",
-    "ai",
-    "machine learning",
-    "coding",
-    "robotics",
-    "stem",
-
-    # NGO
-    "ngo",
-    "foundation",
-    "charity",
-    "nonprofit",
-    "non-profit",
-    "literacy",
-    "child education",
-    "girl education",
-    "inclusive education",
-    "special education",
-    "community learning",
-
-    # Research
-    "research",
-    "innovation",
-    "teaching resources",
-    "classroom resources",
-    "best practices",
-
-    # Wellbeing
-    "mental health",
-    "wellbeing",
-    "student support"
+    "https://www.edtechreview.in/feed/"
 ]
+
+
+# ----------------------------
+# Normalize URL
+# ----------------------------
 def normalize_url(url):
     parts = urlsplit(url)
     return urlunsplit((
@@ -305,11 +50,203 @@ def normalize_url(url):
         "",
         ""
     ))
+
+
 # ----------------------------
-# Existing URLs
+# Download Article
+# ----------------------------
+def get_article_text(url):
+    try:
+        article = Article(url)
+        article.download()
+        article.parse()
+        return article.text.strip()
+    except Exception:
+        return ""
+
+
+# ----------------------------
+# AI Summary
+# ----------------------------
+def get_ai_summary(title, article_text):
+
+    if not article_text:
+        return ""
+
+    prompt = f"""
+You are an education news editor.
+
+Write a professional summary in exactly 2 sentences.
+
+Title:
+{title}
+
+Article:
+{article_text[:3500]}
+
+Return ONLY the summary.
+"""
+
+    try:
+        completion = client.chat.completions.create(
+            model="llama-3.3-70b-versatile",
+            messages=[
+                {
+                    "role": "user",
+                    "content": prompt
+                }
+            ],
+            temperature=0.2
+        )
+
+        return completion.choices[0].message.content.strip()
+
+    except Exception as e:
+        print("Groq Error:", e)
+        return ""
+    # ----------------------------
+# Tag Mapping
 # ----------------------------
 
-existing_urls = set(sh.col_values(2))
+tag_mapping = {
+
+    # Education
+    "education": "Education",
+    "school": "School",
+    "schools": "School",
+    "teacher": "Teachers",
+    "teachers": "Teachers",
+    "teaching": "Teaching",
+    "student": "Students",
+    "students": "Students",
+    "classroom": "Classroom",
+    "curriculum": "Curriculum",
+    "learning": "Learning",
+    "faculty": "Faculty",
+    "professor": "Professor",
+    "principal": "School Leadership",
+
+    # Boards
+    "cbse": "CBSE",
+    "icse": "ICSE",
+    "gseb": "GSEB",
+    "ugc": "UGC",
+    "aicte": "AICTE",
+    "ncert": "NCERT",
+
+    # Exams
+    "exam": "Exams",
+    "exams": "Exams",
+    "result": "Results",
+    "results": "Results",
+    "admission": "Admissions",
+    "admissions": "Admissions",
+    "answer key": "Answer Key",
+    "counselling": "Counselling",
+    "cutoff": "Cutoff",
+    "registration": "Registration",
+    "application": "Application",
+
+    # Competitive Exams
+    "neet": "NEET",
+    "jee": "JEE",
+    "cuet": "CUET",
+    "gate": "GATE",
+    "cat": "CAT",
+    "clat": "CLAT",
+    "upsc": "UPSC",
+    "ssc": "SSC",
+
+    # EdTech
+    "edtech": "EdTech",
+    "artificial intelligence": "Artificial Intelligence",
+    "machine learning": "Machine Learning",
+    "robotics": "Robotics",
+    "coding": "Coding",
+    "stem": "STEM",
+
+    # Digital Wellness
+    "digital wellness": "Digital Wellness",
+    "screen time": "Digital Wellness",
+    "parental control": "Parental Control",
+    "online learning": "Online Learning",
+    "digital learning": "Digital Learning",
+    "e-learning": "Online Learning",
+    "smart classroom": "Smart Classroom",
+
+    # Wellbeing
+    "mental health": "Mental Health",
+    "wellbeing": "Wellbeing",
+    "student support": "Student Support",
+
+    # NGO
+    "ngo": "NGO",
+    "foundation": "Foundation",
+    "literacy": "Literacy",
+    "inclusive education": "Inclusive Education",
+    "special education": "Special Education",
+
+    # Research
+    "research": "Research",
+    "innovation": "Innovation"
+}
+
+# ----------------------------
+# Education Keywords
+# ----------------------------
+
+keywords = list(tag_mapping.keys())
+
+# ----------------------------
+# Words that indicate the article
+# is NOT mainly education.
+# ----------------------------
+
+negative_keywords = [
+
+    "murder",
+    "crime",
+    "felony",
+    "felonies",
+    "charged",
+    "arrest",
+    "arrested",
+    "shooting",
+    "bomb",
+    "terrorist",
+    "terrorism",
+    "violence",
+    "riot",
+    "war",
+    "earthquake",
+    "flood",
+    "cyclone",
+    "hurricane",
+    "election",
+    "politics",
+    "political",
+    "parliament",
+    "lok sabha",
+    "rajya sabha",
+    "minister accused",
+    "court case",
+    "supreme court",
+    "high court",
+    "police",
+    "hazing",
+    "fraternity",
+    "assault"
+]
+# ----------------------------
+# Existing URLs & Titles
+# ----------------------------
+
+existing_urls = set(
+    normalize_url(url)
+    for url in sh.col_values(2)
+    if url.strip()
+)
+
 existing_titles = set(
     title.strip().lower()
     for title in sh.col_values(1)
@@ -321,111 +258,142 @@ print("Starting News Extraction Pipeline...")
 print("=" * 60)
 
 # ----------------------------
-# Store New Articles
+# Read RSS Feeds
 # ----------------------------
 
-new_rows = []
-queued_urls = set()
-queued_titles = set()
+for feed_url in rss_urls:
 
-for url in rss_urls:
-
-    print(f"\nChecking Feed: {url}")
+    print(f"\nChecking Feed: {feed_url}")
 
     try:
-        feed = feedparser.parse(url)
 
-        if feed.bozo:
-            print("Warning: Feed parsing issue.")
+        feed = feedparser.parse(feed_url)
 
         print(f"Articles Found: {len(feed.entries)}")
 
-        
-        for entry in feed.entries:        
+        for entry in feed.entries:
 
-         link = entry.link
+            title = entry.get("title", "").strip()
+            link = normalize_url(entry.get("link", "").strip())
 
-         if entry.link in existing_urls:
-           continue
+            if not title or not link:
+                continue
 
-        title = entry.title
+            # ----------------------------
+            # Duplicate Check
+            # ----------------------------
 
-        summary = get_article_summary(entry.link)
-        if not summary:
-         summary = entry.get("summary", "")
-         summary = re.sub("<.*?>", "", summary)
-         summary = summary.replace("\n", " ").strip() 
-         summary = summary[:100]
+            if link in existing_urls:
+                print("Duplicate URL")
+                continue
 
-        text = (title + " " + summary).lower()
+            if title.lower() in existing_titles:
+                print("Duplicate Title")
+                continue
 
-        tags = []
+            # ----------------------------
+            # RSS Summary
+            # ----------------------------
 
-        for keyword, tag in tag_mapping.items():
+            rss_summary = entry.get("summary", "")
+            rss_summary = re.sub("<.*?>", "", rss_summary)
+            rss_summary = rss_summary.replace("\n", " ").strip()
 
-         if keyword.lower() in text:
+            # ----------------------------
+            # Download Full Article
+            # ----------------------------
 
-            tags.append(tag)
+            article_text = get_article_text(link)
 
-         tags = list(dict.fromkeys(tags))
+            if article_text:
+                normal_summary = ".".join(
+                    article_text.split(".")[:2]
+                ).strip()
+            else:
+                normal_summary = rss_summary
 
-        tags = ", ".join(tags[:3])
+            # ----------------------------
+            # Text used for filtering
+            # ----------------------------
 
-        sh.append_row([
-        title,
-        entry.link,
-        summary,
-        tags,
-        "Draft"
-    ])
+            text = (
+                title + " " +
+                normal_summary + " " +
+                article_text
+            ).lower()
 
-        existing_urls.add(entry.link)
+            # ----------------------------
+            # Education Keyword Filter
+            # ----------------------------
 
-        print("Added:", title)
+            matched_keywords = [
+                k for k in keywords
+                if k in text
+            ]
 
+            if len(matched_keywords) == 0:
+                print("Skipped (No Education Keyword)")
+                continue
 
+            # ----------------------------
+            # Negative Keyword Filter
+            # ----------------------------
 
+            negative_matches = [
+                k for k in negative_keywords
+                if k in text
+            ]
 
+            if len(negative_matches) >= 3:
+                print("Skipped (Looks Non-Education)")
+                continue
 
+            # ----------------------------
+            # Generate Tags
+            # ----------------------------
 
-        existing_urls.add(link)
-        existing_titles.add(title.lower())
+            tags = []
 
-        queued_urls.add(link)
-        queued_titles.add(title.lower())
+            for keyword, tag in tag_mapping.items():
 
-        print(f"Queued: {title}")
+                if keyword in text:
+
+                    if tag not in tags:
+                        tags.append(tag)
+
+            tags = ", ".join(tags[:3])
+
+            # ----------------------------
+            # AI Summary
+            # ----------------------------
+
+            ai_input = article_text if article_text else normal_summary
+
+            ai_summary = get_ai_summary(
+                title,
+                ai_input[:3500]
+            )
+
+            # ----------------------------
+            # Save to Google Sheet
+            # ----------------------------
+
+            sh.append_row([
+                title,
+                link,
+                normal_summary,
+                tags,
+                "Draft",
+                ai_summary
+            ])
+
+            existing_urls.add(link)
+            existing_titles.add(title.lower())
+
+            print("Added:", title)
 
     except Exception as e:
-        print(f"Error reading feed: {url}")
+
+        print("Feed Error:", feed_url)
         print(e)
-
-# ----------------------------
-# Upload All Rows Together
-# ----------------------------
-
-
-
-print("\n" + "=" * 60)
-print(f"New Articles Added : {len(queued_urls)}")
-
-print("=" * 60)
-# ----------------------------
-# Pipeline Summary
-# ----------------------------
-
-print("\n")
-print("=" * 60)
-print("NEWS EXTRACTION PIPELINE COMPLETED")
-print("=" * 60)
-
-print(f"Total New Articles Added : {len(queued_urls)}")
-print(f"Total Existing URLs      : {len(existing_urls)}")
-
-all_rows = sh.get_all_values()
-
-print(f"Total Rows in Sheet : {len(all_rows) - 1}")
-
-print("=" * 60)
-print("Google Sheet Updated Successfully!")
-print("=" * 60)
+        
