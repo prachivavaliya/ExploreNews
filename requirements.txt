@@ -1,4 +1,4 @@
-feedparser
+﻿feedparser
 gspread
 google-auth
 requests
@@ -6,3 +6,4 @@ beautifulsoup4
 newspaper3k
 lxml_html_clean
 groq
+python-dotenv
