@@ -31,6 +31,9 @@ jobs:
           ls -la
           test -f google_creds.json && echo "google_creds.json created successfully"
 
+
       - name: Execute Extraction Pipeline
+        env:
+          GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
         run: |
-          python fetch_news.py
+           python fetch_news.py
